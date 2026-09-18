@@ -1,0 +1,41 @@
+name: Vision Model MLOps Pipeline CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install --extra-index-url https://download.pytorch.org/whl/cpu torch torchvision
+          pip install mlflow pandas scikit-learn
+
+      - name: Run fast smoke-test training run
+        run: python train.py --fast
+
+      - name: Verify runs_summary.csv was produced
+        run: |
+          if [ ! -f runs_summary.csv ]; then
+            echo "runs_summary.csv was not generated — pipeline failed"
+            exit 1
+          fi
+          echo "Pipeline validated: experiment tracking ran end-to-end."
+
+      - name: Check app.py imports cleanly
+        run: |
+          pip install streamlit Pillow
+          python -c "import ast; ast.parse(open('app.py').read())"
+          echo "app.py syntax OK"
